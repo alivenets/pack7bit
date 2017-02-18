@@ -20,125 +20,36 @@ bool pack7bit(const char *str, uint8_t *const out, size_t *const out_len)
 
         uint8_t toPush = 0;
 
-        switch (carryBitsCount) {
-            case 0:
-                carryBits &= 0x00;
-                carryBits |= (byte & 0xFF) << 0;
-                carryBitsCount = 7;
-                toPush = 0;
-                break;
+        const uint8_t lsh_bits = (8 - carryBitsCount);
+        const uint8_t mask = 0xFFU >> lsh_bits;
+        const uint8_t mask2 = 0xFFU >> carryBitsCount;
 
-            case 1:
-                carryBits &= 0x01;
-                carryBits |= (byte & 0x7F) << 1;
-                carryBitsCount = 8;
-                toPush = 0;
-                break;
+        carryBits &= mask;
+        carryBits |= (byte & mask2) << carryBitsCount;
 
-            case 2:
-                carryBits &= 0x03;
-                carryBits |= (byte & 0x3F) << 2;
-                carryBitsCount = 8;
-                toPush = 1;
-                break;
-
-            case 3:
-                carryBits &= 0x07;
-                carryBits |= (byte & 0x1F) << 3;
-                carryBitsCount = 8;
-                toPush = 2;
-                break;
-
-            case 4:
-                carryBits &= 0x0F;
-                carryBits |= (byte & 0x0F) << 4;
-                carryBitsCount = 8;
-                toPush = 3;
-                break;
-
-            case 5:
-                carryBits &= 0x1F;
-                carryBits |= (byte & 0x07) << 5;
-                carryBitsCount = 8;
-                toPush = 4;
-                break;
-
-            case 6:
-                carryBits &= 0x3F;
-                carryBits |= (byte & 0x03) << 6;
-                carryBitsCount = 8;
-                toPush = 5;
-                break;
-
-            case 7:
-                carryBits &= 0x7F;
-                carryBits |= (byte & 0x01) << 7;
-                carryBitsCount = 8;
-                toPush = 6;
-                break;
-
-            case 8:
-                carryBitsCount = 8;
-                toPush = 7;
-                break;
-
-            default:
-                assert(0);
-                break;
+        if (carryBitsCount == 0) {
+            toPush = 0;
+            carryBitsCount = 7;
+        } else if (carryBitsCount <= 8) {
+            toPush = carryBitsCount - 1;
+            carryBitsCount = 8;
+        } else {
+            assert(0);
         }
 
         if (carryBitsCount == 8) {
             out[pack_len] = carryBits;
             ++pack_len;
-
             carryBitsCount = 0;
 
-            if (toPush > 0) {
-                //push remaining bytes to carryBits
-                switch (toPush) {
-                    case 0:
-                        break;
+            const uint8_t lsh_bits = (8 - (toPush + 1));
+            const uint8_t mask = 0xFFU >> lsh_bits;
 
-                    case 1:
-                        carryBits = byte >> 6;
-                        carryBitsCount = 1;
-                        break;
-
-                    case 2:
-                        carryBits = byte >> 5;
-                        carryBitsCount = 2;
-                        break;
-
-                    case 3:
-                        carryBits = byte >> 4;
-                        carryBitsCount = 3;
-                        break;
-
-                    case 4:
-                        carryBits = byte >> 3;
-                        carryBitsCount = 4;
-                        break;
-
-                    case 5:
-                        carryBits = byte >> 2;
-                        carryBitsCount = 5;
-                        break;
-
-                    case 6:
-                        carryBits = byte >> 1;
-                        carryBitsCount = 6;
-                        break;
-
-                    case 7:
-                        carryBits = byte >> 0;
-                        carryBitsCount = 7;
-                        break;
-
-                    case 8:
-                    default:
-                        assert(0);
-                        break;
-                }
+            if (toPush <= 7) {
+                carryBits = (byte >> lsh_bits) & mask;
+                carryBitsCount = toPush;
+            } else {
+                assert(0);
             }
         }
     }
@@ -155,7 +66,7 @@ bool pack7bit(const char *str, uint8_t *const out, size_t *const out_len)
 
 bool unpack7bit(const uint8_t *str7bit, size_t len, char *out, size_t *out_len)
 {
-    size_t unpack_len = 0;
+    size_t  unpack_len = 0;
     uint8_t carryBitsCount = 0;
     uint8_t carryBits = 0;
 
@@ -168,66 +79,18 @@ bool unpack7bit(const uint8_t *str7bit, size_t len, char *out, size_t *out_len)
         const uint8_t byte = str7bit[i];
         uint8_t toPush = 0;
 
-        switch (carryBitsCount) {
-            case 0:
-                carryBits &= 0x00;
-                carryBits |= (byte & 0xFF) << 0;
-                carryBitsCount = 8;
-                toPush = 0;
-                break;
-            case 1:
-                carryBits &= 0x01;
-                carryBits |= (byte & 0x7F) << 1;
-                carryBitsCount = 8;
-                toPush = 1;
-                break;
-            case 2:
-                carryBits &= 0x03;
-                carryBits |= (byte & 0x3F) << 2;
-                carryBitsCount = 8;
-                toPush = 2;
-                break;
-            case 3:
-                carryBits &= 0x07;
-                carryBits |= (byte & 0x1F) << 3;
-                carryBitsCount = 8;
-                toPush = 3;
-                break;
-            case 4:
-                carryBits &= 0x0F;
-                carryBits |= (byte & 0x0F) << 4;
-                carryBitsCount = 8;
-                toPush = 4;
-                break;
-            case 5:
-                carryBits &= 0x1F;
-                carryBits |= (byte & 0x07) << 5;
-                carryBitsCount = 8;
-                toPush = 5;
-                break;
-            case 6:
-                carryBits &= 0x3F;
-                carryBits |= (byte & 0x03) << 6;
-                carryBitsCount = 8;
-                toPush = 6;
-                break;
-            case 7:
-                carryBits &= 0x7F;
-                carryBits |= (byte & 0x01) << 7;
-                carryBitsCount = 8;
-                toPush = 7;
-                break;
-            case 8:
-                carryBits &= 0xFF;
-                carryBits |= (byte & 0x00) << 8;
-                carryBitsCount = 8;
-                toPush = 8;
-                break;
-            default:
-                assert(0);
-                carryBitsCount = 8;
-                break;
+        const uint8_t mask  = 0xFFU >> (8-carryBitsCount);
+        const uint8_t mask2 = 0xFFU >> carryBitsCount;
+
+        if (carryBitsCount <= 8) {
+            carryBits &= mask;
+            carryBits |= (byte & mask2) << carryBitsCount;
+            toPush = carryBitsCount;
+            carryBitsCount = 8;
+        } else {
+            assert(0);
         }
+
 
         out[unpack_len] = (carryBits & 0x7F);
         ++unpack_len;
@@ -235,53 +98,19 @@ bool unpack7bit(const uint8_t *str7bit, size_t len, char *out, size_t *out_len)
         carryBits >>= 7;
         carryBitsCount -= 7;
 
-        if (toPush > 0) {
-            switch (toPush) {
-                case 0:
-//                      carryBits = byte >> 0;
-                    carryBitsCount += 0;
-                    break;
-                case 1:
-                    carryBits |= (byte >> 7) << 1;
-                    carryBitsCount += 1;
-                    break;
-                case 2:
-                    carryBits |= (byte >> 6) << 1;
-                    carryBitsCount += 2;
-                    break;
-                case 3:
-                    carryBits |= (byte >> 5) << 1;
-                    carryBitsCount += 3;
-                    break;
-                case 4:
-                    carryBits |= (byte >> 4) << 1;
-                    carryBitsCount += 4;
-                    break;
-                case 5:
-                    carryBits |= (byte >> 3) << 1;
-                    carryBitsCount += 5;
-                    break;
-                case 6:
-                    carryBits |= (byte >> 2) << 1;
-                    carryBitsCount += 6;
-                    break;
-                case 7:
-                    carryBits |= (byte >> 1) << 1;
-                    carryBitsCount += 7;
-                    break;
-                case 8:
-                    carryBits |= (byte >> 0) << 1;
-                    out[unpack_len] = (carryBits & 0x7F);
-                    ++unpack_len;
-                    carryBits = carryBits >> 7;
-                    carryBits |= (byte >> 7) << 1;
-                    carryBitsCount = 2;
-
-                    break;
-                default:
-                    assert(0);
-                    break;
+        if (toPush <= 8) {
+            carryBits |= (byte >> (8 - toPush)) << 1;
+            if (toPush == 8) {
+                out[unpack_len] = (carryBits & 0x7F);
+                ++unpack_len;
+                carryBits = carryBits >> 7;
+                carryBits |= (byte >> 7) << 1;
+                carryBitsCount = 2;
+            } else {
+                carryBitsCount += toPush;
             }
+        } else {
+            assert(0);
         }
     }
 
@@ -313,7 +142,7 @@ void dumphex(const uint8_t *buf, size_t len)
         printf("\n");
 }
 
-int main(int argc, char *argv[])
+void test(void)
 {
     const char str[] = "~{}~{}[][]ABCDEFGH[][]~{}~{}abcdefgh~{}~{}1234567890~{}~{}";
     uint8_t buf[sizeof(str)] = {0};
@@ -343,5 +172,10 @@ int main(int argc, char *argv[])
     else {
         printf("!!! CMP_FAIL !!!\n");
     }
+}
+
+int main(int argc, char *argv[])
+{
+    test();
     return 0;
 }
