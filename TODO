@@ -1,0 +1,10 @@
+TODO:
+
+ - CMake, build
+ - software version
+ - help
+ - use getopt
+ - support stdin, stdout
+ - test mode
+ - support --bits parameter
+ - comments
