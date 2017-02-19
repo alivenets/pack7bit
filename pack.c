@@ -2,143 +2,123 @@
 
 #include "pack.h"
 
-bool packBits(const uint8_t *str, const size_t len, uint8_t *const out, size_t *const out_len, uint8_t valueBits)
+bool packBits(const uint8_t *str, const size_t len, uint8_t *const out, size_t *const pOutLen, uint8_t valueBits)
 {
-    size_t pack_len = 0;
+    size_t packLen = 0;
     uint8_t carryBitsCount = 0;
     uint8_t carryBits = 0;
-    const size_t max_out_len = *out_len;
+    const size_t maxOutLen = *pOutLen;
 
-    const uint8_t valueMask = ((1U << valueBits) - 1U);
-
+    const uint8_t valueMask = (0x01U << valueBits) - 1U;
     assert(valueBits > 0 && valueBits <= 8);
 
     if (valueBits == 0 || valueBits > 8)
         return false;
 
-    if (len < ((max_out_len * valueBits) / 8))
+    if (maxOutLen < ((len * valueBits) / 8))
         return false;
 
     for(size_t i = 0; i < len; ++i) {
         const uint8_t byte = (str[i] & valueMask);
-        const uint8_t mask  = ~(0xFFU << carryBitsCount);
+        const uint8_t mask  = (0x01U << carryBitsCount) - 1U;
 
-        uint8_t toPush = 0;
+        uint8_t remainingBitsCount = 0;
 
         carryBits = (carryBits & mask) | (byte << carryBitsCount);
 
         if (carryBitsCount == 0) {
-            toPush = 0;
+            remainingBitsCount = 0;
             carryBitsCount = valueBits;
         } else if (carryBitsCount <= 8) {
-            toPush = carryBitsCount - (8 - valueBits);
-            carryBitsCount = 8;
-        } else {
-            assert(0);
-        }
-
-        if (carryBitsCount == 8) {
-            out[pack_len] = carryBits;
-            ++pack_len;
+            remainingBitsCount = carryBitsCount + valueBits - 8;
             carryBitsCount = 0;
-        }
 
-        if (toPush <= valueBits) {
-            if (toPush > 0) {
-                const uint8_t lsh_bits = (valueBits - toPush);
-                const uint8_t mask     = (0xFFU >> lsh_bits);
+            out[packLen++] = carryBits;
 
-                carryBits      = (byte >> lsh_bits) & mask;
-                carryBitsCount = toPush;
+            if (remainingBitsCount > 0) {
+                const uint8_t lshBits = (valueBits - remainingBitsCount);
+
+                carryBits      = (byte >> lshBits);
+                carryBitsCount = remainingBitsCount;
             }
         } else {
             assert(0);
+            break;
         }
     }
 
     if (carryBitsCount > 0) {
-        out[pack_len] = carryBits;
-        ++pack_len;
+        out[packLen++] = carryBits;
     }
 
-    *out_len = pack_len;
+    *pOutLen = packLen;
 
     return true;
 }
 
-bool unpackBits(const uint8_t *packedStr, size_t len, uint8_t *out, size_t *out_len, uint8_t valueBits)
+bool unpackBits(const uint8_t *packedStr, size_t len, char *out, size_t *pOutLen, uint8_t valueBits)
 {
-    size_t  unpack_len = 0;
+    size_t  unpackLen      = 0;
     uint8_t carryBitsCount = 0;
-    uint8_t carryBits = 0;
+    uint8_t carryBits      = 0;
+    uint8_t byte           = 0;
     const uint8_t valueMask = ((1U << valueBits) - 1U);
-    size_t max_out_len = *out_len;
+    size_t maxOutLen = *pOutLen;
 
     assert(valueBits > 0 && valueBits <= 8);
 
     if (valueBits == 0 || valueBits > 8)
         return false;
 
-    if (max_out_len < ((len * 8)/ valueBits))
+    if (maxOutLen < ((len * 8) / valueBits))
         return false;
 
-    for (size_t i = 0; i < len; ++i) {
-        const uint8_t byte = packedStr[i];
+    size_t i = 0;
 
-        uint8_t toPush = 0;
+    while (i < len) {
+        uint8_t remainingBitsCount = 0;
 
-        const uint8_t mask  = 0xFFU >> (8-carryBitsCount);
-        const uint8_t mask2 = 0xFFU >> carryBitsCount;
+        if (carryBitsCount < valueBits) {
+            const uint8_t mask = 0xFFU >> (8 - carryBitsCount);
 
-        if (carryBitsCount <= 8) {
+            byte = packedStr[i++];
+
             carryBits &= mask;
-            carryBits |= (byte & mask2) << carryBitsCount;
-            toPush = carryBitsCount;
+            carryBits |= byte << carryBitsCount;
+            remainingBitsCount = carryBitsCount;
             carryBitsCount = 8;
         } else {
-            assert(0);
+            remainingBitsCount = 0;
         }
+        out[unpackLen++] = (carryBits & valueMask);
 
-        out[unpack_len] = (carryBits & valueMask);
-        ++unpack_len;
-
-        carryBits >>= valueBits;
+        carryBits     >>= valueBits;
         carryBitsCount -= valueBits;
 
-        if (toPush <= 8) {
-            carryBits |= (byte >> (8 - toPush)) << (8 - valueBits);
-            if (toPush == 8) {
-                out[unpack_len] = carryBits & valueMask;
-                ++unpack_len;
-                carryBits = carryBits >> valueBits;
-                carryBits |= (byte >> valueBits) << (8 - valueBits);
-                carryBitsCount = ((8 - valueBits) * 2); // ???
-            } else {
-                carryBitsCount += toPush;
-            }
+        if (remainingBitsCount == 0) {
+        } else if (remainingBitsCount < valueBits) {
+            const uint8_t mask = 0xFFU >> (8 - carryBitsCount);
+            carryBits &= mask;
+            carryBits |= (byte >> (8 - remainingBitsCount)) << carryBitsCount;
+            carryBitsCount += remainingBitsCount;
         } else {
             assert(0);
         }
     }
 
-    if (carryBitsCount > 0) {
-        if (carryBitsCount == 8) {
-            out[unpack_len] = carryBits & valueMask;
-            out[unpack_len+1] = (carryBits >> valueBits) & (0xFFU >> valueBits);
-            unpack_len += 2;
-        }
-        else {
-            out[unpack_len] = (carryBits & valueMask);
-            ++unpack_len;
-        }
+    if (carryBitsCount <= valueBits) {
+        out[unpackLen++] = carryBits & valueMask;
+    } else {
+        assert(0);
+        return false;
     }
 
-    if (out[unpack_len-1]) {
-        out[unpack_len] = '\0';
-        ++unpack_len;
-    }
+    if (out[unpackLen-1])
+        out[unpackLen++] = '\0';
 
-    *out_len = unpack_len;
+    *pOutLen = unpackLen;
+
+    assert(unpackLen <= maxOutLen);
 
     return true;
 }

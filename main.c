@@ -40,6 +40,9 @@ void test7Bit(void)
     const char str[] = "1234567890abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
     uint8_t buf[sizeof(str)] = {0};
     char unpack_buf[sizeof(str)] = "";
+
+    printf("TEST: 7-bit packing\n");
+
     printf("Input string: %s\n", str);
 
     printf("Input HEX:\n");
@@ -86,14 +89,20 @@ void unmapString6Bit(char *str)
 void test6Bit(void)
 {
     const uint8_t BITS = 6;
+
     const char str[] = "1234567890abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
-    char preparedStr[sizeof(str)];
+
+    char preparedStr[sizeof(str)] = "\0";
 
     uint8_t buf[sizeof(str)] = {0};
-    uint8_t unpackBuf[sizeof(str)] = {0};
+    char unpackBuf[sizeof(str)] = "\0";
+
+    printf("TEST: arbitrary packing (6-bit)\n");
+
     printf("Input string: %s\n", str);
 
     printf("Input HEX:\n");
+
     dumpHex((const uint8_t*)str, sizeof(str));
 
     strcpy(preparedStr, str);
@@ -104,6 +113,7 @@ void test6Bit(void)
     bool ret = packBits((const uint8_t*)preparedStr, strlen(preparedStr), buf, &packLen, BITS);
 
     printf("Pack6 (ret = %d):\n", ret);
+
     dumpHex(buf, sizeof(buf));
 
     size_t unpackLen = sizeof(unpackBuf);
@@ -113,6 +123,7 @@ void test6Bit(void)
     dumpHex((const uint8_t*)unpackBuf, sizeof(unpackBuf));
 
     unmapString6Bit((char*)unpackBuf);
+
     printf("Unpack6: %s\n", unpackBuf);
 
     if(strcmp(str, (const char*)unpackBuf) == 0) {
@@ -125,7 +136,8 @@ void test6Bit(void)
 
 int main(int argc, char *argv[])
 {
-//    test7Bit();
+    test7Bit();
     test6Bit();
+
     return 0;
 }

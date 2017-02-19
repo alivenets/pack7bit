@@ -9,12 +9,12 @@ bool pack7Bit(const char *str, size_t len, uint8_t *const out, size_t *const pOu
     uint8_t carryBits = 0;
     const size_t maxOutLen = *pOutLen;
 
-    if (len < ((maxOutLen * 7) / 8))
+    if (maxOutLen < ((len * 7) / 8))
         return false;
 
     for(size_t i = 0; i < len; ++i) {
         const uint8_t byte = (str[i] & 0x7F);
-        const uint8_t mask  = ~(0xFFU << carryBitsCount);
+        const uint8_t mask  = (0x01U << carryBitsCount) - 1;
 
         uint8_t remainingBitsCount = 0;
 
@@ -24,11 +24,10 @@ bool pack7Bit(const char *str, size_t len, uint8_t *const out, size_t *const pOu
             remainingBitsCount = 0;
             carryBitsCount = 7;
         } else if (carryBitsCount <= 8) {
-            remainingBitsCount = carryBitsCount - 1;
+            remainingBitsCount = carryBitsCount + 7 - 8;
             carryBitsCount = 0;
 
-            out[packLen] = carryBits;
-            ++packLen;
+            out[packLen++] = carryBits;
 
             if (remainingBitsCount > 0) {
                 const uint8_t lshBits = (8 - 1 - remainingBitsCount);
@@ -38,12 +37,12 @@ bool pack7Bit(const char *str, size_t len, uint8_t *const out, size_t *const pOu
             }
         } else {
             assert(0);
+            break;
         }
     }
 
     if (carryBitsCount > 0) {
-        out[packLen] = carryBits;
-        ++packLen;
+        out[packLen++] = carryBits;
     }
 
     *pOutLen = packLen;
@@ -53,72 +52,62 @@ bool pack7Bit(const char *str, size_t len, uint8_t *const out, size_t *const pOu
 
 bool unpack7Bit(const uint8_t *str7bit, size_t len, char *out, size_t *pOutLen)
 {
-    size_t  unpackLen = 0;
+    size_t  unpackLen      = 0;
     uint8_t carryBitsCount = 0;
-    uint8_t carryBits = 0;
+    uint8_t carryBits      = 0;
+    uint8_t byte           = 0;
 
     size_t maxOutLen = *pOutLen;
 
-    if (maxOutLen < ((len * 8)/ 7))
+    if (maxOutLen < ((len * 8) / 7))
         return false;
 
-    for (size_t i = 0; i < len; ++i) {
-        const uint8_t byte = str7bit[i];
-
+    size_t i = 0;
+    while (i < len) {
         uint8_t remainingBitsCount = 0;
 
-        const uint8_t mask  = 0xFFU >> (8 - carryBitsCount);
-        const uint8_t mask2 = 0xFFU >> carryBitsCount;
+        if (carryBitsCount < (8 - 1)) {
+            const uint8_t mask = 0xFFU >> (8 - carryBitsCount);
 
-        if (carryBitsCount <= 8) {
+            byte = str7bit[i++];
+
             carryBits &= mask;
-            carryBits |= (byte & mask2) << carryBitsCount;
+            carryBits |= byte << carryBitsCount;
             remainingBitsCount = carryBitsCount;
             carryBitsCount = 8;
         } else {
-            assert(0);
+            remainingBitsCount = 0;
         }
 
-        out[unpackLen] = (carryBits & 0x7F);
-        ++unpackLen;
+        out[unpackLen++] = (carryBits & 0x7F);
 
-        carryBits >>= 7;
-        carryBitsCount -= 7;
+        carryBits     >>= (8 - 1);
+        carryBitsCount -= (8 - 1);
 
-        if (remainingBitsCount <= 8) {
-            carryBits |= (byte >> (8 - remainingBitsCount)) << 1;
-            if (remainingBitsCount == 8) {
-                out[unpackLen] = (carryBits & 0x7F);
-                ++unpackLen;
-                carryBits = carryBits >> 7;
-                carryBits |= (byte >> 7) << 1;
-                carryBitsCount = 2; // ???
-            } else {
-                carryBitsCount += remainingBitsCount;
-            }
+        if (remainingBitsCount == 0) {
+        } else if (remainingBitsCount < (8 - 1)) {
+            const uint8_t mask = 0xFFU >> (8 - carryBitsCount);
+            carryBits &= mask;
+            carryBits |= (byte >> (8 - remainingBitsCount)) << carryBitsCount;
+            carryBitsCount += remainingBitsCount;
         } else {
             assert(0);
         }
     }
 
-    if (carryBitsCount > 0) {
-        if (carryBitsCount == 8) {
-            out[unpackLen] = (carryBits & 0x7F);
-            out[unpackLen+1] = (carryBits >> 7) & 0x01;
-            unpackLen += 2;
-        }
-        else {
-            out[unpackLen] = carryBits & 0x7F;
-            ++unpackLen;
-        }
+    if (carryBitsCount <= (8 - 1)) {
+        out[unpackLen++] = carryBits & 0x7F;
+    } else {
+        assert(0);
+        return false;
     }
 
-    if (out[unpackLen-1]) {
-        out[unpackLen] = '\0';
-        ++unpackLen;
-    }
+    if (out[unpackLen-1])
+        out[unpackLen++] = '\0';
 
     *pOutLen = unpackLen;
+
+    assert(unpackLen <= maxOutLen);
 
     return true;
 }
