@@ -5,23 +5,6 @@
 #include "pack.h"
 #include "pack7.h"
 
-static const char mapChar6Bit[64] = "\0ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz1234567890?";
-
-static uint8_t charToBit6(char c)
-{
-    for (size_t i = 0; i < 64; ++i) {
-        if (mapChar6Bit[i] == c)
-            return i;
-    }
-
-    return 63;
-}
-
-static inline char bit6ToChar(uint8_t bit6)
-{
-    return mapChar6Bit[bit6];
-}
-
 void dumpHex(const uint8_t *buf, size_t len)
 {
     for (size_t i = 0; i < len; ++i) {
@@ -70,6 +53,23 @@ void test7Bit(void)
     }
 }
 
+static const char mapChar6Bit[64] = "\0ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz1234567890?";
+
+static uint8_t charToBit6(char c)
+{
+    for (size_t i = 0; i <= 64; ++i) {
+        if (mapChar6Bit[i] == c)
+            return i;
+    }
+
+    return 64;
+}
+
+static inline char bit6ToChar(uint8_t bit6)
+{
+    return mapChar6Bit[bit6];
+}
+
 void mapString6Bit(char *str)
 {
      while (*str) {
@@ -95,7 +95,7 @@ void test6Bit(void)
     char preparedStr[sizeof(str)] = "\0";
 
     uint8_t buf[sizeof(str)] = {0};
-    char unpackBuf[sizeof(str)] = "\0";
+    uint8_t unpackBuf[sizeof(str)] = {0};
 
     printf("TEST: arbitrary packing (6-bit)\n");
 
@@ -134,10 +134,94 @@ void test6Bit(void)
     }
 }
 
+static const char mapChar4Bit[64] = "0123456789ABCDEF";
+
+static uint8_t charToBit4(char c)
+{
+    for (size_t i = 0; i < 16; ++i) {
+        if (mapChar4Bit[i] == c)
+            return i;
+    }
+
+    return 16;
+}
+
+static inline char bit4ToChar(uint8_t bit4)
+{
+    return mapChar4Bit[bit4];
+}
+
+void mapString4Bit(char *str)
+{
+     while (*str) {
+         *str = charToBit4(*str);
+         str++;
+     }
+}
+
+void unmapString4Bit(char *str, size_t len)
+{
+    for (size_t i = 0; i < len; ++i) {
+        str[i] = bit4ToChar(str[i]);
+    }
+}
+
+void test4Bit(void)
+{
+    const uint8_t BITS = 4;
+
+    const char str[] = "ABCDEF0123456789";
+
+    char preparedStr[sizeof(str)] = "\0";
+
+    uint8_t buf[sizeof(str)] = {0};
+    uint8_t unpackBuf[sizeof(str)] = {0};
+
+    printf("TEST: arbitrary packing (4-bit)\n");
+
+    printf("Input string: %s\n", str);
+
+    printf("Input HEX:\n");
+
+    dumpHex((const uint8_t*)str, sizeof(str));
+
+    strcpy(preparedStr, str);
+
+    const size_t strLen = strlen(preparedStr);
+
+    mapString4Bit(preparedStr);
+
+    size_t packLen = sizeof(buf);
+    bool ret = packBits((const uint8_t*)preparedStr, strLen, buf, &packLen, BITS);
+
+    printf("Pack4 (ret = %d):\n", ret);
+
+    dumpHex(buf, sizeof(buf));
+
+    size_t unpackLen = sizeof(unpackBuf);
+    ret = unpackBits(buf, packLen, unpackBuf, &unpackLen, BITS);
+
+    printf("Unpack4 HEX (ret = %d):\n", ret);
+    dumpHex((const uint8_t*)unpackBuf, sizeof(unpackBuf));
+
+    unmapString4Bit((char*)unpackBuf, unpackLen);
+
+    unpackBuf[unpackLen] = '\0';
+
+    printf("Unpack4: %s\n", unpackBuf);
+
+    if(strcmp(str, (const char*)unpackBuf) == 0) {
+        printf("--- OK ---\n");
+    }
+    else {
+        printf("!!! CMP_FAIL !!!\n");
+    }
+}
+
 int main(int argc, char *argv[])
 {
     test7Bit();
     test6Bit();
-
+    test4Bit();
     return 0;
 }

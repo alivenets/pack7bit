@@ -56,7 +56,7 @@ bool packBits(const uint8_t *str, const size_t len, uint8_t *const out, size_t *
     return true;
 }
 
-bool unpackBits(const uint8_t *packedStr, size_t len, char *out, size_t *pOutLen, uint8_t valueBits)
+bool unpackBits(const uint8_t *packedStr, size_t len, uint8_t *out, size_t *pOutLen, uint8_t valueBits)
 {
     size_t  unpackLen      = 0;
     uint8_t carryBitsCount = 0;
@@ -112,9 +112,6 @@ bool unpackBits(const uint8_t *packedStr, size_t len, char *out, size_t *pOutLen
         assert(0);
         return false;
     }
-
-    if (out[unpackLen-1])
-        out[unpackLen++] = '\0';
 
     *pOutLen = unpackLen;
 
