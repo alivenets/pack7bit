@@ -19,17 +19,17 @@ bool packBits(const uint8_t *str, const size_t len, uint8_t *const out, size_t *
         return false;
 
     for(size_t i = 0; i < len; ++i) {
-        const uint8_t byte = (str[i] & valueMask);
+        const uint8_t byte  = (str[i] & valueMask);
         const uint8_t mask  = (0x01U << carryBitsCount) - 1U;
 
         uint8_t remainingBitsCount = 0;
 
         carryBits = (carryBits & mask) | (byte << carryBitsCount);
 
-        if (carryBitsCount == 0) {
+        if (carryBitsCount + valueBits < 8) {
             remainingBitsCount = 0;
-            carryBitsCount = valueBits;
-        } else if (carryBitsCount <= 8) {
+            carryBitsCount += valueBits;
+        } else {
             remainingBitsCount = carryBitsCount + valueBits - 8;
             carryBitsCount = 0;
 
@@ -41,9 +41,6 @@ bool packBits(const uint8_t *str, const size_t len, uint8_t *const out, size_t *
                 carryBits      = (byte >> lshBits);
                 carryBitsCount = remainingBitsCount;
             }
-        } else {
-            assert(0);
-            break;
         }
     }
 
@@ -68,9 +65,6 @@ bool unpackBits(const uint8_t *packedStr, size_t len, uint8_t *out, size_t *pOut
     assert(valueBits > 0 && valueBits <= 8);
 
     if (valueBits == 0 || valueBits > 8)
-        return false;
-
-    if (maxOutLen < ((len * 8) / valueBits))
         return false;
 
     size_t i = 0;
@@ -105,12 +99,16 @@ bool unpackBits(const uint8_t *packedStr, size_t len, uint8_t *out, size_t *pOut
             assert(0);
         }
     }
+    while(carryBitsCount > 0) {
+        if (unpackLen < maxOutLen)
+            out[unpackLen++] = carryBits & valueMask;
 
-    if (carryBitsCount <= valueBits) {
-        out[unpackLen++] = carryBits & valueMask;
-    } else {
-        assert(0);
-        return false;
+        if (carryBitsCount >= valueBits) {
+            carryBitsCount -= valueBits;
+            carryBits >>= valueBits;
+        }
+        else
+            carryBitsCount = 0;
     }
 
     *pOutLen = unpackLen;

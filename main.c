@@ -218,10 +218,95 @@ void test4Bit(void)
     }
 }
 
+static const char mapChar3Bit[64] = "01234567";
+
+static uint8_t charToBit3(char c)
+{
+    for (size_t i = 0; i < 8; ++i) {
+        if (mapChar4Bit[i] == c)
+            return i;
+    }
+
+    return 8;
+}
+
+static inline char bit3ToChar(uint8_t bit3)
+{
+    return mapChar3Bit[bit3];
+}
+
+void mapString3Bit(char *str)
+{
+     while (*str) {
+         *str = charToBit3(*str);
+         str++;
+     }
+}
+
+void unmapString3Bit(char *str, size_t len)
+{
+    for (size_t i = 0; i < len; ++i) {
+        str[i] = bit3ToChar(str[i]);
+    }
+}
+
+void test3Bit(void)
+{
+    const uint8_t BITS = 3;
+
+    const char str[] = "012345677776543210";
+
+    char preparedStr[sizeof(str)] = "\0";
+
+    uint8_t buf[sizeof(str)] = {0};
+    uint8_t unpackBuf[sizeof(str)] = {0};
+
+    printf("TEST: arbitrary packing (3-bit)\n");
+
+    printf("Input string: %s\n", str);
+
+    printf("Input HEX:\n");
+
+    dumpHex((const uint8_t*)str, sizeof(str));
+
+    strcpy(preparedStr, str);
+
+    const size_t strLen = strlen(preparedStr);
+
+    mapString3Bit(preparedStr);
+
+    size_t packLen = sizeof(buf);
+    bool ret = packBits((const uint8_t*)preparedStr, strLen, buf, &packLen, BITS);
+
+    printf("Pack3 (ret = %d):\n", ret);
+
+    dumpHex(buf, sizeof(buf));
+
+    size_t unpackLen = sizeof(unpackBuf);
+    ret = unpackBits(buf, packLen, unpackBuf, &unpackLen, BITS);
+
+    printf("Unpack3 HEX (ret = %d):\n", ret);
+    dumpHex((const uint8_t*)unpackBuf, sizeof(unpackBuf));
+
+    unmapString3Bit((char*)unpackBuf, unpackLen);
+
+    unpackBuf[sizeof(str)-1] = '\0';
+
+    printf("Unpack3: %s\n", unpackBuf);
+
+    if(strcmp(str, (const char*)unpackBuf) == 0) {
+        printf("--- OK ---\n");
+    }
+    else {
+        printf("!!! CMP_FAIL !!!\n");
+    }
+}
+
 int main(int argc, char *argv[])
 {
-    test7Bit();
-    test6Bit();
-    test4Bit();
+//    test7Bit();
+//    test6Bit();
+//    test4Bit();
+    test3Bit();
     return 0;
 }
