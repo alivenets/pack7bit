@@ -1,5 +1,5 @@
 #include <assert.h>
-#
+
 #include "pack7.h"
 
 bool pack7Bit(const char *str, size_t len, uint8_t *const out, size_t *const pOutLen)
